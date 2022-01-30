@@ -1,40 +1,31 @@
 import styleURL from "~/styles/global.css";
-import { Form } from "remix";
-import { useLoaderData } from "remix";
-import { useActionData } from "remix";
 import * as configcat from "configcat-js-ssr";
+import { useLoaderData } from "remix";
 
 // Runs on the server - for api calls
 export const loader = async () => {
-  // Connect to dashboard through SDK
-  let configCatClient = configcat.createClient(
+  // Connect to your ConfigCat's dashboard
+  const configCatClient = configcat.createClient(
     "fK7ZCApWbkaDu14njPKZQw/vBw-jxALN0eiWNilfwboGA"
   );
 
-  // Check if feature is on/off
-  const isFeatureFlagEnabled = await configCatClient.getValueAsync(
-    "calculateuseragefeature",
+  //
+  const newsFeedFlag = await configCatClient.getValueAsync(
+    "newsfeedfeatureflag",
     false
   );
+  console.log(newsFeedFlag);
 
-  return isFeatureFlagEnabled;
-};
-
-// Access form data on server, return age calculated
-export const action = async ({ request }) => {
-  const form = await request.formData();
-  const birthYear = form.get("birthyear");
-  const age = 2021 - birthYear;
-
-  if (!birthYear) return "error";
-
-  return age;
+  const news = await fetch(
+    "https://hn.algolia.com/api/v1/search?tags=front_page"
+  );
+  const feed = await news.json();
+  return [feed.hits, newsFeedFlag];
 };
 
 export default function App() {
   // Get state of flag and age from loader and action
-  const isFeatureFlagEnabled = useLoaderData();
-  const age = useActionData();
+  const [news, newsFeedFlag] = useLoaderData();
 
   return (
     <html lang='en'>
@@ -46,27 +37,21 @@ export default function App() {
         <title>Demo Feature Flag</title>
       </head>
       <body>
-        {/* Check if feature is on/off */}
-        {isFeatureFlagEnabled ? (
-          <h3>Feature is available</h3>
-        ) : (
-          <h3>Feature is turned off</h3>
-        )}
+        <div>
+          <h1>Trending Hacker News Feed</h1>
 
-        {/* Disabe or enable feature based on flag */}
-        {isFeatureFlagEnabled && (
-          <Form method='post'>
-            <label>
-              <span>What is your birthYear?</span>
-              <input type='text' name='birthyear' />
-            </label>
-            <button className='btn'>Submit</button>
-          </Form>
-        )}
-
-        {age != "error" && isFeatureFlagEnabled && (
-          <p>You are {age} years old</p>
-        )}
+          {newsFeedFlag ? (
+            <ol>
+              {news.map((n) => (
+                <li key={n.id}>
+                  <a href={n.url}>{n.title}</a>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <h2>Ops! News Feed unavailable</h2>
+          )}
+        </div>
       </body>
     </html>
   );
