@@ -1,31 +1,33 @@
 import styleURL from "~/styles/global.css";
-import * as configcat from "configcat-js-ssr";
+import * as configCat from "configcat-js-ssr";
 import { useLoaderData } from "remix";
 
 // Runs on the server - for api calls
 export const loader = async () => {
   // Connect to your ConfigCat's dashboard
-  const configCatClient = configcat.createClient(
+  const configCatClient = configCat.createClient(
     "fK7ZCApWbkaDu14njPKZQw/vBw-jxALN0eiWNilfwboGA"
   );
 
-  //
+  // Check status of feature flag
   const newsFeedFlag = await configCatClient.getValueAsync(
     "newsfeedfeatureflag",
     false
   );
-  console.log(newsFeedFlag);
 
-  const news = await fetch(
+  // Fetch stories from HN
+  const stories = await fetch(
     "https://hn.algolia.com/api/v1/search?tags=front_page"
   );
-  const feed = await news.json();
-  return [feed.hits, newsFeedFlag];
+  const newsFeed = await stories.json();
+
+  // return stories and status of the feature flag to App component
+  return [newsFeed.hits, newsFeedFlag];
 };
 
 export default function App() {
-  // Get state of flag and age from loader and action
-  const [news, newsFeedFlag] = useLoaderData();
+  // deconstruct the stories and state of feature flag in the loader function created above
+  const [newsFeed, newsFeedFlag] = useLoaderData();
 
   return (
     <html lang='en'>
@@ -42,9 +44,9 @@ export default function App() {
 
           {newsFeedFlag ? (
             <ol>
-              {news.map((n) => (
-                <li key={n.id}>
-                  <a href={n.url}>{n.title}</a>
+              {newsFeed.map((story) => (
+                <li key={story.id}>
+                  <a href={story.url}>{story.title}</a>
                 </li>
               ))}
             </ol>
